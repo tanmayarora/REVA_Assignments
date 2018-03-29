@@ -123,30 +123,3 @@ library(nnet)
 nuralnet1<-nnet(traindata$yvar~.,size=7,data=traindata)
 library(NeuralNetTools)
 NeuralNetTools::plotnet(nuralnet1)
-
-----------------------------------------
-attach(mtcars)
-mtcars
-
-
-mycars<-mtcars
-mycars$newvar<-mycars$disp/mycars$mpg
-mycars$newvar
-mycars$mileage<-ifelse(mycars$mpg>=20,1,2)
-mycars$mileage
-mycars
-str(mycars)
-mode(mycars$drat)
-names(mycars)
-tail(mycars)
-summary(mycars[3:6])
-summary(mycars[c(3,4,5,6)])
-summary(mycars[!names(mycars)=="disp"])
-mycars[order(mycars$cyl,mycars$mpg),]
-mycars1<-mycars[mycars$mpg >= 20]
-
-install.packages("sqldf")
-library(sqldf)
-mycars1<-sqldf('select * from mycars where mpg >= 20 AND drat >=4 order by cyl' )
-mycars1
-
