@@ -11,115 +11,170 @@ install.packages("M etrics")
 install.packages("rpart.plot")
 install.packages("randomForest")
 
-bankdata<-read.csv(file.choose())
-
-table(bankdata$y)
-
-prop.table(table(bankdata$y)) #table proportion
+mydata <- read.csv(file.choose())
 
 str(mydata)
+NROW(mydata)
+table(mydata$y)
+class(mydata)
+edit(mydata)
 
-class(bankdata)
+unique(mydata$job)
+table(mydata$job)
+mydata1 <- subset(mydata, subset=(job!="unknown"))
+table((mydata1$job))
+unique(mydata1$job)
 
-edit(bankdata)
+unique(mydata1$education)
+table(mydata1$education)
+mydata2 <- subset(mydata1, subset=(education!="unknown"))
+unique(mydata2$education)
+table(mydata2$education)
 
-str(bankdata)
+unique(mydata2$contact)
+table(mydata2$contact)# we will remove contact, as unknown is more
 
-unique(bankdata$job)
+unique(mydata2$default)
+table(mydata2$default)
+prop.table(table(mydata2$default))
+barplot(table(mydata2$default))#we will remove default, as yes % is less than 1%
 
-table(bankdata$job)
+unique(mydata2$poutcome)
+table(mydata2$poutcome)# we will remove poutcome, as unknown is more
 
-bankdata1<-subset(bankdata,subset=(job!="unknown"))
+#duration filed also should be remmoved, as the whole business objective is to get rid of calls
+# and predict before making the calls
 
-table(bankdata$education)
+#remove the variables which are not required
+mydata3 <- subset(mydata2, select = -c(default, duration, poutcome, contact))
+str(mydata3)
 
-bankdata2<-subset(bankdata,subset=(education!="unknown"))
 
-table(bankdata2$education)
+#recode y
+table(mydata$y)
+mydata3$yvar <- ifelse(mydata3$y == "yes", 1, 2)
+table(mydata3$yvar)
+str(mydata3)
 
-table(bankdata2$contact)
+write.csv(mydata3, file = "C:/Users/310307847/Desktop/Tanmay/MBA/TRIM 1/Machine Learning with  R/Assignment/BankDataAll_Clean.csv")
 
-table(bankdata2$default)
+#convert yvar which is numeric now, as factor
+mydata3$yvar <- as.factor(mydata3$yvar)
+str(mydata3)
 
-barplot(table(bankdata$default))
+mydata4 <- subset(mydata3, select = -c(y))
+table(mydata4$yvar)
+NROW(mydata4)
+NROW(mydata)
 
-table(bankdata2$poutcome=="unknown")
-table(bankdata2$poutcome)
+#we lost 3000 records, which is fine for simplicity
 
-bankdata3<-subset(bankdata2, select=-c(default, duration, poutcome, contact))
-table(bankdata3$y)
+unique(mydata4$pdays)
+table(mydata4$pdays)# let it be like this
 
-bankdata3$yvar<-ifelse(bankdata3$y=="yes",1,2)
-table(bankdata3$yvar)
 
-write.csv(bankdata3,"E:/Data/finalbankdata.csv")
+barplot(table(mydata4$yvar))
+table(mydata4$yvar)
+prop.table(table(mydata4$yvar))
 
-#convert yvar from numeric to factor
-
-bankdata3$yvar<-as.factor(bankdata3$yvar)
-bankdata4<-subset(bankdata3, select=-c(y))
-
-table(bankdata4$yvar)
-NROW(bankdata4)
-
-table(bankdata4$pdays)
-unique(table(bankdata4$pdays))
-
-barplot(table(bank$yvar))
-hist(bankdata4$age)
-
-install.packages("ggplot2")
+library(ggplot2)
+hist(mydata4$age)
+#use overlay to check with yvar and age
 library(ggplot2)
 
-ggplot()+geom_bar(data=bankdata4, aes(x=(bankdata4$age), fill=factor(bankdata4$yvar)), position="fill")
-str(bankdata4)
+ggplot() +geom_bar(data = mydata4, aes(x=(mydata4$age), fill = factor(mydata4$yvar)), position = "fill")
 
-ggplot()+geom_bar(data=bankdata4, aes(x=(bankdata4$age), fill=factor(bankdata4$marital)), position="fill")
+ggplot() +geom_bar(data = mydata4, aes(x=(mydata4$marital), fill = factor(mydata4$yvar)), position = "fill")
 
 
-#modelling
-set.seed(123) # to generate random numbers 
-NROW(bankdata4) #measure data
-datamixed=bankdata4[order(runif(43354)), ]  #shuffle data
-traindata=datamixed[1:30235, ] #train data 70%
-testdata=datamixed[30236:43354, ] #test data 30%
+boxplot(balance~yvar, data = mydata4)
 
-install.packages("C50")
+hist(mydata4$balance)
+
+set.seed(123)
+NROW(mydata4)
+datamixed = mydata4[order(runif(43193)), ]#shuffle the data
+traindata <- datamixed[1:30235, ]
+testdata <- datamixed[30236:43193, ]
+
+#use C5
 library(C50)
-
-modelc5<-C5.0(traindata$yvar~., data=traindata, trials=100, rules=TRUE) #decidion tree using c5.0 algorithm
-
-#predict from test data using model
-
-predictedc5=predict(modelc5, testdata[,1:12]) #all rows, 1:12 column(left last column which is yvar)
-plot(predictedc5)
-
+modelc5 <- C5.0(traindata$yvar~., data = traindata)
+str(mydata4)
+predictedc5 = predict(modelc5, testdata[,1:12])
 plot(modelc5)
 
-#create confusion matrix to test accuracy of model(test and train) if accuracy and sensitivity is more. 
-#if the model is not accurate, solve it by data level or algorithm level
-install.packages("caret")
-install.packages("e1071")
+#use prune command to cut the tree
 library(caret)
+confusionMatrix(predictedc5, testdata[, 13])
 
-confusionMatrix(predictedc5,testdata[,13])
+#SMOT alogirthm etc. helps over-sampling and under-sampling
 
-#reduce class data from train data
+table(traindata$yvar)
+prop.table(table(traindata$yvar))
 
-table(traindata$yvar) #see proportion
+#remove data from yvar = 2 so that it becomes 30:70 for 1:2
+orderddata<-traindata[order(-xtfrm(traindata$yvar)),]#order data..order command works for numerical data, here I am doing stransfor order - so that data with 2 come at first..means descedning
+barplot(table(orderddata$yvar))
+NROW(orderddata)
+table(orderddata$yvar)
 
-#change it to different proportion
-
-#ordering train data 
-
-orderdata<-traindata[order(-xtfrm(traindata$yvar)),] #xtrfm to order factor variables since its not a ordinal value.
-table(orderdata$yvar)
-barplot(table(orderdata$yvar))
-sampletraindata1<-orderdata[18656:30235,]
+sampletraindata1 <- orderddata[18656:30235, ]
 barplot(table(sampletraindata1$yvar))
+barplot(table(mydata4$yvar))
 
 
+#use C5
+modelc5_u1 <- C5.0(sampletraindata1$yvar~., data = sampletraindata1)
+#str(mydata4)
+predictedc5_u1 = predict(modelc5_u1, testdata[,1:12])
+plot(predictedc5_u1)
+
+#use prune command to cut the tree
+library(caret)
+confusionMatrix(predictedc5_u1, testdata[, 13])
+
+#remove data from yvar = 2 so that it becomes 40:60 for 1:2
+sampletraindata2 <- orderddata[21559:30235, ]
+barplot(table(sampletraindata2$yvar))
+modelc5_u2 <- C5.0(sampletraindata2$yvar~., data = sampletraindata2)
+predictedc5_u2 = predict(modelc5_u2, testdata[,1:12])
+confusionMatrix(predictedc5_u2, testdata[, 13])
+
+sampletraindata2 <- orderddata[21559:30235, ]
+barplot(table(sampletraindata2$yvar))
+modelc5_u3 <- C5.0(sampletraindata2$yvar~., data = sampletraindata2, trials = 1)
+predictedc5_u3 = predict(modelc5_u3, testdata[,1:12])
+confusionMatrix(predictedc5_u3, testdata[, 13])
+
+sampletraindata2 <- orderddata[21559:30235, ]
+modelc5_u4 <- C5.0(sampletraindata2$yvar~., data = sampletraindata2, trials = 2)
+predictedc5_u4 = predict(modelc5_u4, testdata[,1:12])
+confusionMatrix(predictedc5_u4, testdata[, 13])
+
+sampletraindata2 <- orderddata[21559:30235, ]
+modelc5_u4 <- C5.0(sampletraindata2$yvar~., data = sampletraindata2, trials = 200)
+predictedc5_u4 = predict(modelc5_u4, testdata[,1:12])
+confusionMatrix(predictedc5_u4, testdata[, 13])
+
+sampletraindata2 <- orderddata[21559:30235, ]
+modelc5_u4 <- C5.0(sampletraindata2$yvar~., data = sampletraindata2, trials = 100, rules = TRUE)
+predictedc5_u4 = predict(modelc5_u4, testdata[,1:12])
+confusionMatrix(predictedc5_u4, testdata[, 13])
+
+
+#run neural net
 library(nnet)
-nuralnet1<-nnet(traindata$yvar~.,size=7,data=traindata)
+modelnnet <- nnet(sampletraindata1$yvar~., size = 7, data = sampletraindata1)
 library(NeuralNetTools)
-NeuralNetTools::plotnet(nuralnet1)
+NeuralNetTools::plotnet(modelnnet)
+predictednet = predict(modelnnet, testdata[,1:12], type="class")
+confusionMatrix(predictednet, testdata[, 13])
+
+str(sampletraindata1)
+m<- train(x=sampletraindata1$[,1:12]., data = sampletraindata1$yvar, method="C5.0")
+
+library(kernlab)
+musk_svm = ksvm(yvar ~ ., data = sampletraindata1, kernel = "vanilladot")
+predictedsvm = predict(musk_svm, testdata[,1:12])
+confusionMatrix(predictedsvm, testdata[, 13])
